@@ -1,29 +1,43 @@
-import { Injectable } from '@nestjs/common';
-import { CreatePostDto } from './dto/create-post.dto';
-import { UpdatePostDto } from './dto/update-post.dto';
-import { Post } from './intefaces/posts.interface';
+import { Injectable, Inject } from '@nestjs/common';
+import { Post } from './entities/post.entity';
+import { PostDto } from './dto/post.dto';
+import { User } from '../modules/users/user.entity';
+import { POST_REPOSITORY } from '../core/constants';
 
 @Injectable()
 export class PostsService {
-  private readonly posts: Post[] = [];
+  constructor(
+    @Inject(POST_REPOSITORY) private readonly postRepository: typeof Post,
+  ) {}
 
-  create(createPostDto: CreatePostDto) {
-    return 'This action adds a new post';
+  async create(post: PostDto, userId): Promise<Post> {
+    return await this.postRepository.create<Post>({ ...post, userId });
   }
 
-  findAll() {
-    return `This action returns all posts`;
+  async findAll(): Promise<Post[]> {
+    return await this.postRepository.findAll<Post>({
+      include: [{ model: User, attributes: { exclude: ['password'] } }],
+    });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} post`;
+  async findOne(id): Promise<Post> {
+    return await this.postRepository.findOne({
+      where: { id },
+      include: [{ model: User, attributes: { exclude: ['password'] } }],
+    });
   }
 
-  update(id: number, updatePostDto: UpdatePostDto) {
-    return `This action updates a #${id} post`;
+  async delete(id, userId) {
+    return await this.postRepository.destroy({ where: { id, userId } });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} post`;
+  async update(id, data, userId) {
+    const [numberOfAffectedRows, [updatedPost]] =
+      await this.postRepository.update(
+        { ...data },
+        { where: { id, userId }, returning: true },
+      );
+
+    return { numberOfAffectedRows, updatedPost };
   }
 }
